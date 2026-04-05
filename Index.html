@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CTI Operations</title>
+<!-- Firebase compat (classic script tags, no ES modules needed) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#1a6bff;--blue-light:#e8f0ff;--blue-mid:#c2d4ff;
+  --bg:#f0f4ff;--white:#fff;--border:#dde5f5;
+  --text:#0d1b3e;--text2:#4a5780;--text3:#8a93b0;
+  --green:#00c48c;--orange:#ff9800;--red:#ff3b5c;
+  --shadow:0 2px 16px rgba(26,107,255,.10);
+  --shadow-lg:0 8px 32px rgba(26,107,255,.15);
+  --radius:16px;--radius-sm:10px;--tab-h:72px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{background:var(--bg);color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;height:100%;overflow:hidden;}
+.app{display:flex;flex-direction:column;height:100dvh;max-width:430px;margin:0 auto;overflow:hidden;background:var(--bg);}
+
+/* HEADER */
+.top-header{background:var(–white);padding:52px 20px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(–border);flex-shrink:0;z-index:10;}
+.header-logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:var(–blue);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;color:white;font-weight:800;}
+.logo-text{font-size:18px;font-weight:800;color:var(–text);}
+.logo-text span{color:var(–blue);}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(–text3);margin-left:6px;flex-shrink:0;transition:background .3s;}
+.sync-dot.live{background:var(–green);box-shadow:0 0 0 3px rgba(0,196,140,.2);animation:pulse 2s infinite;}
+.sync-dot.err{background:var(–red);}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(0,196,140,.2)}50%{box-shadow:0 0 0 6px rgba(0,196,140,.05)}}
+.header-right{display:flex;align-items:center;gap:8px;}
+.role-pill{background:var(–blue-light);color:var(–blue);font-size:11px;font-weight:700;padding:5px 12px;border-radius:20px;cursor:pointer;border:none;font-family:inherit;transition:all .2s;}
+.role-pill.admin{background:#fff4e0;color:var(–orange);}
+.notif-btn{width:34px;height:34px;background:var(–blue-light);border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;position:relative;}
+.notif-dot{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(–red);border-radius:50%;border:2px solid white;}
+
+/* LAYOUT */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(–tab-h)+12px);}
+.page{display:none;}
+.page.active{display:block;animation:fadeUp .22s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* TABS */
+.bottom-tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;height:var(–tab-h);background:var(–white);border-top:1px solid var(–border);display:flex;align-items:flex-start;padding-top:8px;z-index:100;box-shadow:0 -4px 20px rgba(26,107,255,.08);}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:4px 0;position:relative;}
+.tab-icon{width:40px;height:32px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:18px;transition:background .15s;}
+.tab-btn.active .tab-icon{background:var(–blue-light);}
+.tab-label{font-size:10px;font-weight:600;color:var(–text3);transition:color .15s;}
+.tab-btn.active .tab-label{color:var(–blue);}
+.tab-badge{position:absolute;top:0;right:calc(50% - 28px);background:var(–red);color:white;font-size:9px;font-weight:700;padding:2px 5px;border-radius:10px;border:2px solid white;min-width:18px;text-align:center;}
+.tab-badge.hide{display:none;}
+
+/* GREETING */
+.greeting-banner{margin:16px;background:linear-gradient(135deg,var(–blue),#3d8bff);border-radius:var(–radius);padding:20px;color:white;position:relative;overflow:hidden;}
+.greeting-banner::before{content:’’;position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:rgba(255,255,255,.1);border-radius:50%;}
+.greeting-banner::after{content:’’;position:absolute;bottom:-30px;right:20px;width:80px;height:80px;background:rgba(255,255,255,.07);border-radius:50%;}
+.greeting-label{font-size:12px;opacity:.8;font-weight:500;}
+.greeting-title{font-size:22px;font-weight:800;margin-top:2px;}
+.greeting-date{font-size:12px;opacity:.7;margin-top:4px;}
+
+/* STATS */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px;margin-top:16px;}
+.stat-card{background:var(–white);border-radius:var(–radius);padding:16px;box-shadow:var(–shadow);position:relative;overflow:hidden;}
+.stat-card::before{content:’’;position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0;}
+.sc-blue::before{background:var(–blue);}  .sc-green::before{background:var(–green);}
+.sc-orange::before{background:var(–orange);} .sc-red::before{background:var(–red);}
+.stat-icon{font-size:22px;margin-bottom:8px;}
+.stat-val{font-size:28px;font-weight:800;color:var(–text);line-height:1;}
+.stat-lbl{font-size:11px;color:var(–text3);font-weight:600;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+
+/* CARDS */
+.card{background:var(–white);border-radius:var(–radius);box-shadow:var(–shadow);margin:12px 16px 0;overflow:hidden;}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(–border);}
+.card-title{font-size:13px;font-weight:700;color:var(–text);text-transform:uppercase;letter-spacing:.5px;}
+.card-action{font-size:12px;color:var(–blue);font-weight:600;background:none;border:none;cursor:pointer;font-family:inherit;}
+.card-body{padding:12px 16px;}
+.row-item{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(–border);}
+.row-item:last-child{border-bottom:none;}
+.row-left{display:flex;align-items:center;gap:12px;}
+.row-icon{width:38px;height:38px;background:var(–blue-light);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.row-main{font-size:14px;font-weight:600;color:var(–text);}
+.row-sub{font-size:11px;color:var(–text3);margin-top:1px;}
+.row-right{text-align:right;}
+.row-val{font-size:16px;font-weight:800;color:var(–blue);}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;}
+.badge-ok{background:#e6faf5;color:var(–green);}
+.badge-pending{background:#fff4e0;color:var(–orange);}
+.badge-mismatch{background:#ffe8ec;color:var(–red);}
+
+/* FORMS */
+.form-section{padding:16px;display:flex;flex-direction:column;gap:14px;}
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:11px;font-weight:700;color:var(–text2);text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field select{background:var(–bg);border:1.5px solid var(–border);color:var(–text);font-family:‘Plus Jakarta Sans’,sans-serif;font-size:15px;font-weight:500;padding:13px 14px;border-radius:var(–radius-sm);outline:none;transition:border-color .15s,background .15s;-webkit-appearance:none;width:100%;}
+.field input:focus,.field select:focus{border-color:var(–blue);background:white;}
+.field select{background-image:url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ width=‘12’ height=‘8’%3E%3Cpath d=‘M1 1l5 5 5-5’ stroke=’%234a5780’ stroke-width=‘1.5’ fill=‘none’ stroke-linecap=‘round’/%3E%3C/svg%3E”);background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{opacity:1;}
+
+/* QTY */
+.model-block{margin:0 12px 12px;}
+.model-name-header{font-size:11px;font-weight:800;color:var(–blue);text-transform:uppercase;letter-spacing:1px;padding:10px 14px 6px;background:var(–blue-light);border-radius:var(–radius-sm) var(–radius-sm) 0 0;}
+.color-qty-row{display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(–border);background:white;gap:10px;}
+.color-qty-row:last-child{border-bottom:none;border-radius:0 0 var(–radius-sm) var(–radius-sm);}
+.color-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dot-silver{background:#b0b8cc;border:1px solid #8a93b0;} .dot-blue{background:#3b82f6;} .dot-orange{background:#f97316;}
+.color-label{flex:1;font-size:14px;font-weight:500;color:var(–text);}
+.qty-input{width:72px;background:var(–bg);border:1.5px solid var(–border);border-radius:8px;padding:8px 10px;font-size:16px;font-weight:700;text-align:center;color:var(–blue);font-family:inherit;outline:none;}
+.qty-input:focus{border-color:var(–blue);background:white;}
+.submit-bar{background:white;border-top:1px solid var(–border);padding:14px 16px;display:flex;align-items:center;gap:12px;margin-top:16px;}
+
+/* BUTTONS */
+.btn{font-family:‘Plus Jakarta Sans’,sans-serif;font-weight:700;font-size:14px;padding:13px 22px;border-radius:var(–radius-sm);border:none;cursor:pointer;transition:transform .1s,opacity .15s;}
+.btn:active{transform:scale(.97);opacity:.9;}
+.btn-primary{background:var(–blue);color:white;} .btn-secondary{background:var(–blue-light);color:var(–blue);}
+.btn-danger{background:#ffe8ec;color:var(–red);} .btn-warn{background:#fff4e0;color:var(–orange);}
+.btn-green{background:#e6faf5;color:var(–green);} .btn-excel{background:#1D6F42;color:white;}
+.btn-full{width:100%;text-align:center;} .btn-sm{padding:8px 14px;font-size:12px;}
+
+/* SUB CARDS */
+.sub-card{background:white;border-radius:var(–radius);box-shadow:var(–shadow);margin:10px 16px 0;padding:14px 16px;display:flex;flex-direction:column;gap:8px;cursor:pointer;border:1.5px solid transparent;transition:box-shadow .15s;}
+.sub-card:active{box-shadow:var(–shadow-lg);border-color:var(–blue-mid);}
+.sub-card-top{display:flex;align-items:flex-start;justify-content:space-between;}
+.sub-buyer{font-size:15px;font-weight:700;color:var(–text);}
+.sub-store{font-size:12px;color:var(–text3);margin-top:2px;}
+.sub-card-bottom{display:flex;align-items:center;justify-content:space-between;}
+.sub-date{font-size:11px;color:var(–text3);font-weight:500;}
+.sub-units{font-size:13px;font-weight:700;color:var(–blue);}
+
+/* SHIPPING */
+.city-scroll{display:flex;gap:8px;overflow-x:auto;padding:16px 16px 4px;scrollbar-width:none;}
+.city-scroll::-webkit-scrollbar{display:none;}
+.city-chip{flex-shrink:0;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;border:1.5px solid var(–border);background:white;color:var(–text2);cursor:pointer;transition:all .15s;font-family:inherit;}
+.city-chip.active{background:var(–blue);color:white;border-color:var(–blue);}
+.ship-summary-card{margin:12px 16px 0;background:white;border-radius:var(–radius);box-shadow:var(–shadow);overflow:hidden;}
+.ship-header{background:linear-gradient(135deg,var(–blue),#3d8bff);padding:16px;color:white;display:flex;align-items:center;justify-content:space-between;}
+.ship-city-name{font-size:18px;font-weight:800;}
+.ship-total-badge{background:rgba(255,255,255,.25);padding:6px 14px;border-radius:20px;font-size:14px;font-weight:700;}
+.model-ship-row{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(–border);}
+.model-ship-row:last-child{border-bottom:none;}
+.model-ship-name{flex:1;font-size:13px;color:var(–text2);font-weight:500;}
+.model-ship-count{font-size:18px;font-weight:800;color:var(–blue);}
+
+/* OVERRIDE */
+.override-card{background:white;border-radius:var(–radius);box-shadow:var(–shadow);margin:10px 16px 0;overflow:hidden;border-left:4px solid var(–orange);}
+.ov-header{padding:14px 16px;border-bottom:1px solid var(–border);}
+.ov-buyer{font-size:15px;font-weight:700;} .ov-store{font-size:12px;color:var(–text3);}
+.ov-row{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(–border);gap:10px;}
+.ov-row:last-child{border-bottom:none;}
+.ov-model{flex:1;font-size:12px;color:var(–text2);}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(13,27,62,.55);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:24px 24px 0 0;width:100%;max-width:430px;max-height:90dvh;overflow-y:auto;padding:24px 20px 40px;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:40px;height:4px;background:var(–border);border-radius:2px;margin:0 auto 20px;}
+.modal-title{font-size:18px;font-weight:800;color:var(–text);margin-bottom:16px;}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.modal-actions .btn{flex:1;}
+
+/* PIN */
+.pin-display{display:flex;justify-content:center;gap:12px;margin:20px 0;}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:var(–border);transition:background .15s;}
+.pin-dot.filled{background:var(–blue);}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto;}
+.pin-key{background:var(–bg);border:1.5px solid var(–border);border-radius:14px;height:60px;font-size:22px;font-weight:700;color:var(–text);cursor:pointer;font-family:inherit;transition:all .1s;display:flex;align-items:center;justify-content:center;}
+.pin-key:active{background:var(–blue-light);border-color:var(–blue);transform:scale(.95);}
+.pin-key.pin-empty{opacity:0;pointer-events:none;}
+.pin-error{text-align:center;color:var(–red);font-size:13px;font-weight:600;margin-top:12px;min-height:20px;}
+
+/* SETUP */
+.setup-screen{display:flex;flex-direction:column;align-items:center;padding:48px 24px 60px;text-align:center;background:var(–bg);height:100dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.setup-logo{width:52px;height:52px;background:var(–blue);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:white;font-weight:800;margin:0 auto 14px;}
+.setup-title{font-size:22px;font-weight:800;color:var(–text);margin-bottom:6px;}
+.setup-sub{font-size:13px;color:var(–text3);line-height:1.6;margin-bottom:16px;}
+.step-item{display:flex;gap:12px;margin-bottom:10px;text-align:left;width:100%;}
+.step-num{width:24px;height:24px;border-radius:50%;background:var(–blue);color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:12px;color:var(–text2);line-height:1.55;}
+.step-text strong{color:var(–text);}
+.step-text a{color:var(–blue);font-weight:600;}
+
+/* MISC */
+.empty-state{padding:48px 20px;text-align:center;}
+.empty-icon{font-size:44px;margin-bottom:12px;}
+.empty-title{font-size:16px;font-weight:700;color:var(–text);margin-bottom:6px;}
+.empty-sub{font-size:13px;color:var(–text3);}
+.toast{position:fixed;bottom:calc(var(–tab-h)+12px);left:16px;right:16px;max-width:398px;margin:0 auto;background:var(–text);color:white;font-size:13px;font-weight:600;padding:14px 18px;border-radius:var(–radius-sm);z-index:9999;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none;display:flex;align-items:center;gap:10px;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.success::before{content:‘✓’;color:var(–green);font-size:16px;font-weight:800;}
+.toast.error::before{content:‘✕’;color:var(–red);font-size:16px;font-weight:800;}
+.page-heading{padding:20px 16px 4px;}
+.page-heading h1{font-size:26px;font-weight:800;color:var(–text);}
+.page-heading p{font-size:13px;color:var(–text3);margin-top:3px;}
+.filter-row{display:flex;gap:8px;padding:12px 16px 4px;overflow-x:auto;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{display:none;}
+.filter-chip{flex-shrink:0;padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid var(–border);background:white;color:var(–text2);cursor:pointer;font-family:inherit;transition:all .15s;}
+.filter-chip.active{background:var(–blue-light);color:var(–blue);border-color:var(–blue-mid);}
+.info-box{background:var(–blue-light);border-radius:var(–radius-sm);padding:14px;font-size:13px;color:var(–text2);line-height:1.7;}
+.access-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;text-align:center;}
+.access-denied .icon{font-size:52px;margin-bottom:16px;}
+.access-denied h2{font-size:20px;font-weight:800;color:var(–text);margin-bottom:8px;}
+.access-denied p{font-size:13px;color:var(–text3);margin-bottom:24px;line-height:1.6;}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.connected-banner{background:linear-gradient(135deg,var(–green),#00a876);border-radius:var(–radius);padding:16px 20px;color:white;display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+</style>
+
+</head>
+<body>
+
+<!-- SETUP WIZARD -->
+
+<div id="setup-screen" class="setup-screen" style="display:none;">
+  <div class="setup-logo">C</div>
+  <div class="setup-title">Connect Firebase</div>
+  <div class="setup-sub">Set this up once. Your whole team shares one live database — every submission syncs instantly across all phones.</div>
+  <div style="width:100%;margin-bottom:14px;">
+    <div class="step-item"><div class="step-num">1</div><div class="step-text">Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> → sign in with Google → <strong>Add project</strong> → name it anything → disable Analytics → Create</div></div>
+    <div class="step-item"><div class="step-num">2</div><div class="step-text">In your project sidebar click <strong>Realtime Database</strong> → Create database → United States → <strong>Start in test mode</strong> → Enable</div></div>
+    <div class="step-item"><div class="step-num">3</div><div class="step-text">Click the ⚙️ gear → <strong>Project Settings</strong> → scroll to "Your apps" → click <strong>&lt;/&gt;</strong> → register app → copy the 4 values below</div></div>
+  </div>
+  <div style="width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+    <div class="field"><label>API Key</label><input type="text" id="cfg-apiKey" placeholder="AIzaSy..."></div>
+    <div class="field"><label>Auth Domain</label><input type="text" id="cfg-authDomain" placeholder="your-project.firebaseapp.com"></div>
+    <div class="field"><label>Database URL</label><input type="text" id="cfg-dbUrl" placeholder="https://your-project-default-rtdb.firebaseio.com"></div>
+    <div class="field"><label>Project ID</label><input type="text" id="cfg-projectId" placeholder="your-project-id"></div>
+  </div>
+  <button class="btn btn-primary btn-full" id="connect-btn" onclick="saveConfig()">Connect →</button>
+  <div id="connect-status" style="margin-top:12px;font-size:13px;color:var(--red);min-height:20px;text-align:center;"></div>
+</div>
+
+<!-- MAIN APP -->
+
+<div class="app" id="main-app" style="display:none;">
+  <div class="top-header">
+    <div class="header-logo">
+      <div class="logo-icon">C</div>
+      <div class="logo-text">CTI <span>Hub</span></div>
+      <div class="sync-dot" id="sync-dot"></div>
+    </div>
+    <div class="header-right">
+      <button class="role-pill" id="role-pill" onclick="handleRoleBtn()">👤 <span id="role-label">Buyer</span></button>
+      <button class="notif-btn" onclick="handleNotifBtn()">🔔<span class="notif-dot" id="notif-dot" style="display:none;"></span></button>
+    </div>
+  </div>
+
+  <div class="scroll-area" id="scroll-area">
+
+```
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="greeting-banner">
+    <div class="greeting-label" id="greeting-label">Welcome 👋</div>
+    <div class="greeting-title">CTI Operations</div>
+    <div class="greeting-date" id="today-date"></div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card sc-blue"><div class="stat-icon">📱</div><div class="stat-val" id="stat-units">0</div><div class="stat-lbl" id="lbl-units">My Units</div></div>
+    <div class="stat-card sc-green"><div class="stat-icon">📋</div><div class="stat-val" id="stat-reports">0</div><div class="stat-lbl" id="lbl-reports">My Reports</div></div>
+    <div class="stat-card sc-orange" id="sc-pending" style="display:none;"><div class="stat-icon">📦</div><div class="stat-val" id="stat-pending">0</div><div class="stat-lbl">Pending Ship</div></div>
+    <div class="stat-card sc-red" id="sc-mismatch" style="display:none;"><div class="stat-icon">⚠️</div><div class="stat-val" id="stat-mismatch">0</div><div class="stat-lbl">Mismatches</div></div>
+  </div>
+  <div class="card" id="city-card" style="display:none;margin-top:16px;"><div class="card-header"><div class="card-title">By City</div></div><div class="card-body" id="city-breakdown"></div></div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-header"><div class="card-title" id="recent-title">My Recent Reports</div><button class="card-action" onclick="navigate('submissions')">See all →</button></div>
+    <div class="card-body" id="recent-subs"></div>
+  </div>
+  <div style="height:8px;"></div>
+</div>
+
+<!-- SUBMIT -->
+<div class="page" id="page-submit">
+  <div class="page-heading"><h1>New Report</h1><p>Enter today's purchases</p></div>
+  <div class="card" style="margin-top:12px;">
+    <div class="card-header"><div class="card-title">Buyer Info</div></div>
+    <div class="form-section">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label>Buyer Name</label><input type="text" id="f-buyer" placeholder="Buyer Name"></div>
+        <div class="field"><label>Name on Card</label><input type="text" id="f-card" placeholder="Name on Card"></div>
+      </div>
+      <div class="field"><label>City</label>
+        <select id="f-city" onchange="updateStores()">
+          <option value="">— Select City —</option>
+          <option>Dallas</option><option>Houston</option><option>Austin</option><option>San Antonio</option>
+        </select>
+      </div>
+      <div class="field"><label>Store</label><select id="f-store"><option value="">— Select City First —</option></select></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label>Date</label><input type="date" id="f-date"></div>
+        <div class="field"><label>Company</label><select id="f-company"><option>CTI</option><option>STP</option></select></div>
+      </div>
+    </div>
+  </div>
+  <div class="card"><div class="card-header"><div class="card-title">Units Purchased</div></div><div id="qty-blocks" style="padding:8px 0;"></div></div>
+  <div class="submit-bar">
+    <div style="flex:1;"><div style="font-size:22px;font-weight:800;color:var(--blue);" id="submit-total">0</div><div style="font-size:11px;color:var(--text3);font-weight:600;">TOTAL UNITS</div></div>
+    <button class="btn btn-primary" id="submit-btn" onclick="submitReport()">Submit →</button>
+  </div>
+</div>
+
+<!-- SUBMISSIONS -->
+<div class="page" id="page-submissions">
+  <div class="page-heading"><h1 id="sub-title">My Reports</h1><p id="sub-sub">Your submitted purchases</p></div>
+  <div id="admin-filters" style="display:none;">
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="filterSubs('',this)">All Cities</button>
+      <button class="filter-chip" onclick="filterSubs('Dallas',this)">Dallas</button>
+      <button class="filter-chip" onclick="filterSubs('Houston',this)">Houston</button>
+      <button class="filter-chip" onclick="filterSubs('Austin',this)">Austin</button>
+      <button class="filter-chip" onclick="filterSubs('San Antonio',this)">San Antonio</button>
+    </div>
+    <div style="padding:8px 16px 0;"><div class="field"><label>Filter by Date</label><input type="date" id="filter-date" onchange="renderSubmissions()"></div></div>
+  </div>
+  <div id="submissions-list"></div>
+  <div style="height:8px;"></div>
+</div>
+
+<!-- SHIPPING -->
+<div class="page" id="page-shipping">
+  <div class="page-heading"><h1>Shipping</h1><p>Consolidated by city — live</p></div>
+  <div id="shipping-body"></div>
+</div>
+
+<!-- OVERRIDES -->
+<div class="page" id="page-overrides">
+  <div class="page-heading"><h1>Overrides</h1><p>Physical count corrections</p></div>
+  <div id="overrides-body"></div>
+  <div style="height:8px;"></div>
+</div>
+
+<!-- EXPORT -->
+<div class="page" id="page-export">
+  <div class="page-heading"><h1>Export</h1><p>Download as Excel</p></div>
+  <div id="export-body"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="page-heading"><h1>Settings</h1><p>Firebase & admin</p></div>
+  <div id="settings-body"></div>
+  <div style="height:8px;"></div>
+</div>
+```
+
+  </div>
+
+  <nav class="bottom-tabs">
+    <button class="tab-btn active" onclick="navigate('dashboard')" id="tab-dashboard"><div class="tab-icon">🏠</div><div class="tab-label">Home</div></button>
+    <button class="tab-btn" onclick="navigate('submit')" id="tab-submit"><div class="tab-icon">✏️</div><div class="tab-label">Submit</div></button>
+    <button class="tab-btn" onclick="navigate('submissions')" id="tab-submissions"><div class="tab-icon">📋</div><div class="tab-label">Reports</div><span class="tab-badge hide" id="tbadge-sub">0</span></button>
+    <button class="tab-btn" onclick="navigate('shipping')" id="tab-shipping" style="display:none;"><div class="tab-icon">📦</div><div class="tab-label">Shipping</div><span class="tab-badge hide" id="tbadge-ship">0</span></button>
+    <button class="tab-btn" onclick="navigate('overrides')" id="tab-overrides" style="display:none;"><div class="tab-icon">⚠️</div><div class="tab-label">Override</div><span class="tab-badge hide" id="tbadge-ov">0</span></button>
+    <button class="tab-btn" onclick="navigate('export')" id="tab-export" style="display:none;"><div class="tab-icon">📊</div><div class="tab-label">Export</div></button>
+    <button class="tab-btn" onclick="navigate('settings')" id="tab-settings" style="display:none;"><div class="tab-icon">⚙️</div><div class="tab-label">Settings</div></button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+
+<div class="modal-overlay" id="detail-modal"><div class="modal"><div class="modal-handle"></div><div class="modal-title" id="modal-title">Report</div><div id="modal-body"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="CM('detail-modal')">Close</button><button class="btn btn-warn" id="btn-override" style="display:none;" onclick="CM('detail-modal');openOverride(selId)">Override</button><button class="btn btn-green" id="btn-verify" style="display:none;" onclick="verifyReport(selId);CM('detail-modal')">✓ Verify</button></div></div></div>
+<div class="modal-overlay" id="override-modal"><div class="modal"><div class="modal-handle"></div><div class="modal-title">Physical Count Override</div><div style="font-size:13px;color:var(--text3);margin-bottom:16px;">Adjust quantities to match physical count.</div><div id="override-body-inner"></div><div class="modal-actions"><button class="btn btn-secondary" onclick="CM('override-modal')">Cancel</button><button class="btn btn-danger" onclick="saveOverride()">Save Override</button></div></div></div>
+<div class="modal-overlay" id="pin-modal"><div class="modal"><div class="modal-handle"></div><div style="text-align:center;"><div style="font-size:32px;margin-bottom:8px;">🔑</div><div class="modal-title" style="text-align:center;margin-bottom:4px;">Admin Access</div><div style="font-size:13px;color:var(--text3);" id="pin-sub">Enter your 4-digit PIN</div></div><div class="pin-display" id="pin-dots"></div><div class="pin-grid" id="pin-grid"></div><div class="pin-error" id="pin-error"></div><div style="margin-top:16px;text-align:center;"><button class="btn btn-secondary btn-sm" onclick="CM('pin-modal');pinBuf=[];rdots('pin-dots',pinBuf);">Cancel</button></div></div></div>
+<div class="modal-overlay" id="chpin-modal"><div class="modal"><div class="modal-handle"></div><div style="text-align:center;"><div style="font-size:32px;margin-bottom:8px;">🔐</div><div class="modal-title" style="text-align:center;margin-bottom:4px;">Change Admin PIN</div><div style="font-size:13px;color:var(--text3);" id="chpin-sub">Enter new 4-digit PIN</div></div><div class="pin-display" id="chpin-dots"></div><div class="pin-grid" id="chpin-grid"></div><div class="pin-error" id="chpin-error"></div><div style="margin-top:16px;text-align:center;"><button class="btn btn-secondary btn-sm" onclick="CM('chpin-modal');chBuf=[];chStage='new';">Cancel</button></div></div></div>
+<div class="modal-overlay" id="admin-menu"><div class="modal"><div class="modal-handle"></div><div class="modal-title">Admin Menu</div><div style="display:flex;flex-direction:column;gap:10px;"><button class="btn btn-warn btn-full" style="padding:14px;" onclick="CM('admin-menu');openChPin();">🔐 Change PIN</button><button class="btn btn-secondary btn-full" style="padding:14px;" onclick="CM('admin-menu');navigate('settings');">⚙️ Settings</button><button class="btn btn-danger btn-full" style="padding:14px;" onclick="logoutAdmin()">🚪 Sign Out</button><button class="btn btn-secondary btn-full" style="padding:14px;" onclick="CM('admin-menu')">Close</button></div></div></div>
+<div class="modal-overlay" id="buyer-modal"><div class="modal"><div class="modal-handle"></div><div style="text-align:center;margin-bottom:20px;"><div style="font-size:36px;margin-bottom:8px;">👤</div><div class="modal-title" style="text-align:center;margin-bottom:4px;">Who are you?</div><div style="font-size:13px;color:var(--text3);">Enter your buyer name to get started</div></div><div class="field" style="margin-bottom:16px;"><label>Your Name</label><input type="text" id="buyer-input" placeholder="e.g. Hamza" style="text-align:center;"></div><button class="btn btn-primary btn-full" onclick="setBuyerName()">Continue →</button></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ CONSTANTS ══════════════════════════════════════
+const STORES={
+  Dallas:['NorthPark R144','Knox R042','Galleria R746','Southlake R151','University R316'],
+  Houston:['Woodlands R126','Memorial R164','Galleria R058','Highland R437','WillowBrook','First Colony','Baybrook R204'],
+  Austin:['Barton Creek R085','Domain R216'],
+  'San Antonio':['LA CANTERA R131','NorthStar R290']
+};
+const MODELS=[
+  {id:'pm256',name:'17 Pro Max 256GB'},
+  {id:'pm512',name:'17 Pro Max 512GB'},
+  {id:'pm1tb',name:'17 Pro Max 1TB'},
+  {id:'p256', name:'17 Pro 256GB'}
+];
+const COLORS=['Silver','Blue','Orange'];
+const ADMIN_TABS=['shipping','overrides','export','settings'];
+
+// ══ STATE ══════════════════════════════════════════
+var db=null, subs={}, ovs={};
+var adminPin=localStorage.getItem('cti_pin')||'1234';
+var role='buyer', myName=localStorage.getItem('cti_name')||'';
+var selId=null, shipCity='Dallas', subCityFilter='';
+var pinBuf=[], chBuf=[], chStage='new', chFirst='';
+
+// ══ BOOT ═══════════════════════════════════════════
+window.onload=function(){
+  document.getElementById('today-date').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  document.getElementById('f-date').value=td();
+  buildQtyBlocks();
+  buildPad('pin-grid','pp');
+  buildPad('chpin-grid','cp');
+  var cfg=loadCfg();
+  if(cfg){ bootFirebase(cfg); }
+  else { document.getElementById('setup-screen').style.display='flex'; }
+};
+function td(){ return new Date().toISOString().split('T')[0]; }
+
+// ══ FIREBASE CONFIG ════════════════════════════════
+function loadCfg(){ var s=localStorage.getItem('cti_fb'); return s?JSON.parse(s):null; }
+
+function saveConfig(){
+  var ak=v('cfg-apiKey'), ad=v('cfg-authDomain'), du=v('cfg-dbUrl'), pi=v('cfg-projectId');
+  if(!ak||!ad||!du||!pi){ document.getElementById('connect-status').textContent='Fill in all 4 fields'; return; }
+  var cfg={apiKey:ak,authDomain:ad,databaseURL:du,projectId:pi};
+  var btn=document.getElementById('connect-btn');
+  btn.innerHTML='<span class="spinner"></span>Connecting...'; btn.disabled=true;
+  try{
+    var app=firebase.initializeApp(cfg);
+    var testDb=firebase.database(app);
+    testDb.ref('__ping__').set({t:Date.now()})
+      .then(function(){
+        localStorage.setItem('cti_fb',JSON.stringify(cfg));
+        bootFirebase(cfg);
+      })
+      .catch(function(e){
+        document.getElementById('connect-status').textContent='Failed: '+e.message;
+        btn.innerHTML='Connect →'; btn.disabled=false;
+      });
+  }catch(e){
+    document.getElementById('connect-status').textContent='Error: '+e.message;
+    btn.innerHTML='Connect →'; btn.disabled=false;
+  }
+}
+
+function bootFirebase(cfg){
+  try{
+    var apps=firebase.apps;
+    var app=apps.length?apps[0]:firebase.initializeApp(cfg);
+    db=firebase.database(app);
+    document.getElementById('setup-screen').style.display='none';
+    document.getElementById('main-app').style.display='flex';
+    listenToData();
+    applyRole();
+    if(!myName) setTimeout(function(){ OM('buyer-modal'); },500);
+  }catch(e){
+    document.getElementById('connect-status').textContent='Boot error: '+e.message;
+    document.getElementById('setup-screen').style.display='flex';
+  }
+}
+
+// ══ REALTIME LISTENERS ═════════════════════════════
+function listenToData(){
+  var dot=document.getElementById('sync-dot');
+  db.ref('submissions').on('value',function(snap){
+    var raw=snap.val()||{};
+    Object.keys(raw).forEach(function(k){ if(raw[k]) raw[k]._id=k; });
+    subs=raw;
+    dot.className='sync-dot live';
+    refreshAll();
+  },function(){ dot.className='sync-dot err'; showToast('Connection lost','error'); });
+
+  db.ref('overrides').on('value',function(snap){
+    ovs=snap.val()||{};
+    refreshAll();
+  });
+}
+
+function refreshAll(){
+  updateBadges();
+  var p=curPage();
+  if(p==='dashboard')   renderDash();
+  if(p==='submissions') renderSubs();
+  if(p==='shipping')    renderShip();
+  if(p==='overrides')   renderOvs();
+}
+
+// ══ NAVIGATION ══════════════════════════════════════
+function navigate(pg){
+  if(role==='buyer'&&ADMIN_TABS.indexOf(pg)>-1){ showToast('Admin access required','error'); return; }
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('page-'+pg).classList.add('active');
+  var tb=document.getElementById('tab-'+pg); if(tb)tb.classList.add('active');
+  document.getElementById('scroll-area').scrollTop=0;
+  if(pg==='dashboard')   renderDash();
+  if(pg==='submissions') renderSubs();
+  if(pg==='shipping')    renderShip();
+  if(pg==='overrides')   renderOvs();
+  if(pg==='export')      renderExport();
+  if(pg==='settings')    renderSettings();
+}
+function curPage(){ var a=document.querySelector('.page.active'); return a?a.id.replace('page-',''):'dashboard'; }
+
+// ══ ROLE ════════════════════════════════════════════
+function applyRole(){
+  var isA=role==='admin';
+  ADMIN_TABS.forEach(function(t){ var el=document.getElementById('tab-'+t); if(el)el.style.display=isA?'':'none'; });
+  document.getElementById('role-pill').className='role-pill'+(isA?' admin':'');
+  document.getElementById('role-label').textContent=isA?'Admin':(myName||'Buyer');
+  document.getElementById('sc-pending').style.display=isA?'':'none';
+  document.getElementById('sc-mismatch').style.display=isA?'':'none';
+  document.getElementById('city-card').style.display=isA?'':'none';
+  document.getElementById('admin-filters').style.display=isA?'':'none';
+  document.getElementById('sub-title').textContent=isA?'All Reports':'My Reports';
+  document.getElementById('sub-sub').textContent=isA?'All submissions — live':'Your submitted purchases';
+  document.getElementById('recent-title').textContent=isA?'Recent Reports':'My Recent Reports';
+  document.getElementById('lbl-units').textContent=isA?'Total Units':'My Units';
+  document.getElementById('lbl-reports').textContent=isA?'Total Reports':'My Reports';
+  updateBadges();
+}
+function handleRoleBtn(){ role==='admin'?OM('admin-menu'):openPin(); }
+function handleNotifBtn(){ role==='admin'?navigate('overrides'):openPin(); }
+function logoutAdmin(){ role='buyer'; applyRole(); CM('admin-menu'); if(ADMIN_TABS.indexOf(curPage())>-1)navigate('dashboard'); renderDash(); renderSubs(); showToast('Signed out as Admin'); }
+
+// ══ BUYER NAME ══════════════════════════════════════
+function setBuyerName(){
+  var n=document.getElementById('buyer-input').value.trim();
+  if(!n){ showToast('Enter your name','error'); return; }
+  myName=n; localStorage.setItem('cti_name',n);
+  document.getElementById('f-buyer').value=n;
+  document.getElementById('role-label').textContent=n;
+  CM('buyer-modal'); renderDash(); renderSubs(); showToast('Welcome, '+n+'! 👋');
+}
+
+// ══ PIN ═════════════════════════════════════════════
+function openPin(){ pinBuf=[]; rdots('pin-dots',pinBuf); document.getElementById('pin-error').textContent=''; OM('pin-modal'); }
+function buildPad(gridId,fn){
+  var keys=['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  document.getElementById(gridId).innerHTML=keys.map(function(k){
+    if(!k)return'<div class="pin-key pin-empty"></div>';
+    if(k==='⌫')return'<button class="pin-key" onclick="'+fn+'(\'del\')">⌫</button>';
+    return'<button class="pin-key" onclick="'+fn+'(\''+k+'\')">'+k+'</button>';
+  }).join('');
+}
+function rdots(id,buf){ document.getElementById(id).innerHTML=[0,1,2,3].map(function(i){ return'<div class="pin-dot'+(i<buf.length?' filled':'')+'"></div>'; }).join(''); }
+function pp(k){ if(k==='del')pinBuf.pop(); else if(pinBuf.length<4)pinBuf.push(k); rdots('pin-dots',pinBuf); if(pinBuf.length===4)setTimeout(checkPin,120); }
+function checkPin(){
+  if(pinBuf.join('')===adminPin){ role='admin'; applyRole(); CM('pin-modal'); pinBuf=[]; rdots('pin-dots',pinBuf); renderDash(); renderSubs(); showToast('Admin access granted 🔑'); }
+  else{ document.getElementById('pin-error').textContent='Incorrect PIN. Try again.'; pinBuf=[]; rdots('pin-dots',pinBuf); setTimeout(function(){ document.getElementById('pin-error').textContent=''; },2000); }
+}
+function openChPin(){ chBuf=[]; chStage='new'; chFirst=''; document.getElementById('chpin-sub').textContent='Enter new 4-digit PIN'; document.getElementById('chpin-error').textContent=''; rdots('chpin-dots',chBuf); OM('chpin-modal'); }
+function cp(k){ if(k==='del')chBuf.pop(); else if(chBuf.length<4)chBuf.push(k); rdots('chpin-dots',chBuf); if(chBuf.length===4)setTimeout(handleCp,120); }
+function handleCp(){
+  if(chStage==='new'){ chFirst=chBuf.join(''); chBuf=[]; chStage='confirm'; document.getElementById('chpin-sub').textContent='Confirm new PIN'; rdots('chpin-dots',chBuf); }
+  else{
+    if(chBuf.join('')===chFirst){ adminPin=chFirst; localStorage.setItem('cti_pin',adminPin); CM('chpin-modal'); chBuf=[]; chStage='new'; showToast('PIN changed ✓'); }
+    else{ document.getElementById('chpin-error').textContent="PINs don't match."; chBuf=[]; chStage='new'; rdots('chpin-dots',chBuf); setTimeout(function(){ document.getElementById('chpin-sub').textContent='Enter new 4-digit PIN'; document.getElementById('chpin-error').textContent=''; },2000); }
+  }
+}
+
+// ══ STORES ══════════════════════════════════════════
+function updateStores(){
+  var c=document.getElementById('f-city').value;
+  document.getElementById('f-store').innerHTML=c?(STORES[c]||[]).map(function(s){ return'<option>'+s+'</option>'; }).join(''):'<option>— Select City First —</option>';
+}
+
+// ══ QTY BLOCKS ══════════════════════════════════════
+function buildQtyBlocks(){
+  document.getElementById('qty-blocks').innerHTML=MODELS.map(function(m){
+    return'<div class="model-block"><div class="model-name-header">'+m.name+'</div>'+
+      COLORS.map(function(c){
+        return'<div class="color-qty-row"><span class="color-dot dot-'+c.toLowerCase()+'"></span><span class="color-label">'+c+'</span><input type="number" min="0" value="0" class="qty-input" id="qv-'+m.id+'-'+c.toLowerCase()+'" oninput="calcTotal()"></div>';
+      }).join('')+'</div>';
+  }).join('');
+}
+function calcTotal(){
+  var t=0;
+  MODELS.forEach(function(m){ COLORS.forEach(function(c){ t+=parseInt(document.getElementById('qv-'+m.id+'-'+c.toLowerCase()).value||0); }); });
+  document.getElementById('submit-total').textContent=t;
+}
+
+// ══ SUBMIT → FIREBASE ═══════════════════════════════
+function submitReport(){
+  if(!db){ showToast('Not connected','error'); return; }
+  var buyer=v('f-buyer'), card=v('f-card'), city=v('f-city'), store=v('f-store'), date=v('f-date'), company=v('f-company');
+  if(!buyer||!city||!store||!date){ showToast('Fill in all fields','error'); return; }
+  var q={}, total=0;
+  MODELS.forEach(function(m){ COLORS.forEach(function(c){ var val=parseInt(document.getElementById('qv-'+m.id+'-'+c.toLowerCase()).value||0); q[m.id+'_'+c.toLowerCase()]=val; total+=val; }); });
+  if(!total){ showToast('Add at least 1 unit','error'); return; }
+  myName=buyer; localStorage.setItem('cti_name',buyer);
+  document.getElementById('role-label').textContent=buyer;
+  var btn=document.getElementById('submit-btn');
+  btn.innerHTML='<span class="spinner"></span>Saving...'; btn.disabled=true;
+  db.ref('submissions').push({date:date,buyer:buyer,card:card,city:city,store:store,company:company,quantities:q,total:total,status:'pending',submittedAt:new Date().toISOString()})
+    .then(function(){
+      MODELS.forEach(function(m){ COLORS.forEach(function(c){ document.getElementById('qv-'+m.id+'-'+c.toLowerCase()).value=0; }); });
+      document.getElementById('submit-total').textContent='0';
+      showToast(total+' units submitted ✓');
+      navigate('submissions');
+    })
+    .catch(function(e){ showToast('Save failed: '+e.message,'error'); })
+    .finally(function(){ btn.innerHTML='Submit →'; btn.disabled=false; });
+}
+
+// ══ DASHBOARD ═══════════════════════════════════════
+function renderDash(){
+  var t=td(), all=objVals(subs);
+  var mine=role==='admin'?all:all.filter(function(s){ return sm(s.buyer,myName); });
+  var todaySubs=mine.filter(function(s){ return s.date===t; });
+  var totalU=todaySubs.reduce(function(a,s){ return a+effTotal(s); },0);
+  set('stat-units',totalU);
+  set('stat-reports',todaySubs.length);
+  set('stat-pending',all.reduce(function(a,s){ return a+effTotal(s); },0));
+  set('stat-mismatch',all.filter(function(s){ return s.status==='mismatch'; }).length);
+  if(role==='admin'){
+    var ct={};
+    todaySubs.forEach(function(s){ ct[s.city]=(ct[s.city]||0)+effTotal(s); });
+    var ch=Object.keys(ct).length?'':'<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">No reports today</div>';
+    Object.keys(ct).forEach(function(city){
+      var n=ct[city], pct=totalU?Math.round(n/totalU*100):0;
+      ch+='<div class="row-item"><div class="row-left"><div class="row-icon">🏙️</div><div><div class="row-main">'+city+'</div><div style="margin-top:4px;height:3px;width:'+Math.max(pct,4)+'%;background:var(--blue);border-radius:2px;max-width:120px;"></div></div></div><div class="row-right"><div class="row-val">'+n+'</div><div style="font-size:10px;color:var(--text3);">units</div></div></div>';
+    });
+    document.getElementById('city-breakdown').innerHTML=ch;
+  }
+  var rec=mine.slice().sort(function(a,b){ return (b.submittedAt||'').localeCompare(a.submittedAt||''); }).slice(0,4);
+  var rh=rec.length?'':'<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px;">No reports yet</div>';
+  rec.forEach(function(s){ rh+='<div class="row-item" onclick="openDetail(\''+s._id+'\')" style="cursor:pointer;"><div class="row-left"><div class="row-icon">📱</div><div><div class="row-main">'+s.buyer+'</div><div class="row-sub">'+s.store+' · '+s.date+'</div></div></div><div class="row-right"><div class="row-val">'+effTotal(s)+'</div><span class="badge badge-'+bdg(s.status)+'">'+s.status+'</span></div></div>'; });
+  document.getElementById('recent-subs').innerHTML=rh;
+}
+
+// ══ SUBMISSIONS ══════════════════════════════════════
+function filterSubs(city,btn){
+  subCityFilter=city;
+  document.querySelectorAll('.filter-chip').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active'); renderSubs();
+}
+function renderSubs(){
+  var all=objVals(subs);
+  var list=role==='admin'?all:all.filter(function(s){ return sm(s.buyer,myName); });
+  list.sort(function(a,b){ return (b.submittedAt||'').localeCompare(a.submittedAt||''); });
+  if(subCityFilter)list=list.filter(function(s){ return s.city===subCityFilter; });
+  var df=document.getElementById('filter-date');
+  if(df&&df.value&&role==='admin')list=list.filter(function(s){ return s.date===df.value; });
+  var el=document.getElementById('submissions-list');
+  if(!list.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No reports</div><div class="empty-sub">'+(role==='buyer'?'No reports submitted yet':'No submissions match filters')+'</div></div>'; return; }
+  el.innerHTML=list.map(function(s){
+    var hasOv=ovs[s._id]&&Object.keys(ovs[s._id]).length>0;
+    return'<div class="sub-card" onclick="openDetail(\''+s._id+'\')">'+'<div class="sub-card-top"><div><div class="sub-buyer">'+s.buyer+'</div><div class="sub-store">'+s.store+' · '+s.city+'</div></div><span class="badge badge-'+bdg(s.status)+'">'+s.status+'</span></div>'+'<div class="sub-card-bottom"><div class="sub-date">'+s.date+(hasOv?' · <span style="color:var(--orange);">overridden</span>':'')+'</div><div class="sub-units">'+effTotal(s)+' units</div></div></div>';
+  }).join('');
+}
+
+// ══ DETAIL ══════════════════════════════════════════
+function openDetail(id){
+  var s=subs[id]; if(!s)return;
+  if(role==='buyer'&&!sm(s.buyer,myName)){ showToast('Access denied','error'); return; }
+  selId=id;
+  document.getElementById('modal-title').textContent=s.buyer+' — '+s.date;
+  document.getElementById('btn-override').style.display=role==='admin'?'':'none';
+  document.getElementById('btn-verify').style.display=role==='admin'?'':'none';
+  var myOvs=ovs[id]||{};
+  var html='<div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;"><div><span style="color:var(--text3);">Store</span><br><strong>'+s.store+'</strong></div><div><span style="color:var(--text3);">City</span><br><strong>'+s.city+'</strong></div><div><span style="color:var(--text3);">Name on Card</span><br><strong>'+s.card+'</strong></div><div><span style="color:var(--text3);">Company</span><br><strong>'+s.company+'</strong></div></div>';
+  var grand=0;
+  MODELS.forEach(function(m){
+    var mt=0; COLORS.forEach(function(c){ mt+=effQtyFrom(s,myOvs,m.id+'_'+c.toLowerCase()); });
+    if(!mt)return;
+    html+='<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">'+m.name+'</div>';
+    COLORS.forEach(function(c){
+      var key=m.id+'_'+c.toLowerCase(), rep=s.quantities[key]||0, eff=effQtyFrom(s,myOvs,key);
+      if(!rep&&!eff)return; grand+=eff;
+      var isOv=myOvs[key]!==undefined;
+      html+='<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);"><span class="color-dot dot-'+c.toLowerCase()+'" style="margin-right:10px;"></span><span style="flex:1;font-size:14px;">'+c+'</span><span style="font-size:16px;font-weight:700;color:'+(isOv?'var(--orange)':'var(--blue)')+';">'+eff+'</span>'+(isOv?'<span style="font-size:10px;color:var(--text3);margin-left:6px;">(was '+rep+')</span>':'')+'</div>';
+    });
+    html+='</div>';
+  });
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:2px solid var(--border);"><span style="font-size:13px;font-weight:700;color:var(--text2);">TOTAL</span><span style="font-size:22px;font-weight:800;color:var(--blue);">'+grand+'</span></div>';
+  document.getElementById('modal-body').innerHTML=html;
+  OM('detail-modal');
+}
+
+// ══ OVERRIDE ════════════════════════════════════════
+function openOverride(id){
+  if(role!=='admin'){ showToast('Admin only','error'); return; }
+  var s=subs[id]; if(!s)return;
+  selId=id;
+  var myOvs=ovs[id]||{};
+  var html='<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:16px;">'+s.buyer+' · '+s.store+'</div>';
+  MODELS.forEach(function(m){ COLORS.forEach(function(c){
+    var key=m.id+'_'+c.toLowerCase(), rep=s.quantities[key]||0, cur=myOvs[key]!==undefined?myOvs[key]:rep;
+    html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);"><span class="color-dot dot-'+c.toLowerCase()+'"></span><span style="flex:1;font-size:12px;">'+m.name+'/'+c+'</span><span style="color:var(--blue);font-weight:700;font-size:14px;min-width:24px;text-align:center;">'+rep+'</span><span style="color:var(--text3);font-size:11px;">→</span><input type="number" min="0" value="'+cur+'" id="ov-'+m.id+'-'+c.toLowerCase()+'" class="qty-input" style="width:72px;"></div>';
+  }); });
+  document.getElementById('override-body-inner').innerHTML=html;
+  OM('override-modal');
+}
+function saveOverride(){
+  if(!db)return;
+  var s=subs[selId]; if(!s)return;
+  var ovData={}, hasMismatch=false;
+  MODELS.forEach(function(m){ COLORS.forEach(function(c){
+    var key=m.id+'_'+c.toLowerCase();
+    var el=document.getElementById('ov-'+m.id+'-'+c.toLowerCase()); if(!el)return;
+    var nv=parseInt(el.value)||0, rep=s.quantities[key]||0;
+    if(nv!==rep){ ovData[key]=nv; hasMismatch=true; }
+  }); });
+  var status=hasMismatch?'mismatch':'pending';
+  var p1=db.ref('overrides/'+selId).set(Object.keys(ovData).length?ovData:null);
+  var p2=db.ref('submissions/'+selId+'/status').set(status);
+  Promise.all([p1,p2]).then(function(){ CM('override-modal'); showToast('Override saved'); }).catch(function(e){ showToast('Failed: '+e.message,'error'); });
+}
+function verifyReport(id){
+  if(role!=='admin'||!db)return;
+  db.ref('submissions/'+id+'/status').set('verified').then(function(){ showToast('Report verified ✓'); }).catch(function(e){ showToast('Failed: '+e.message,'error'); });
+}
+function clearOv(id){
+  if(!db)return;
+  Promise.all([db.ref('overrides/'+id).remove(), db.ref('submissions/'+id+'/status').set('pending')]).then(function(){ showToast('Override cleared'); }).catch(function(e){ showToast('Failed: '+e.message,'error'); });
+}
+
+// ══ SHIPPING ════════════════════════════════════════
+function renderShip(){
+  var el=document.getElementById('shipping-body');
+  if(role!=='admin'){ el.innerHTML='<div class="access-denied"><div class="icon">🔒</div><h2>Admin Only</h2><p>Shipping is visible to admins only.</p><button class="btn btn-primary" onclick="openPin()">Sign in as Admin</button></div>'; return; }
+  var all=objVals(subs), cities=['Dallas','Houston','Austin','San Antonio'];
+  var html='<div class="city-scroll">'+cities.map(function(c){ var cnt=all.filter(function(s){ return s.city===c; }).reduce(function(a,s){ return a+effTotal(s); },0); return'<button class="city-chip '+(c===shipCity?'active':'')+'" onclick="shipCity=\''+c+'\';renderShip()">'+c+' <span style="opacity:.7;font-size:11px;">'+cnt+'</span></button>'; }).join('')+'</div>';
+  var csubs=all.filter(function(s){ return s.city===shipCity; });
+  var totals={};
+  MODELS.forEach(function(m){ COLORS.forEach(function(c){ totals[m.id+'_'+c.toLowerCase()]=0; }); });
+  csubs.forEach(function(s){ MODELS.forEach(function(m){ COLORS.forEach(function(c){ var k=m.id+'_'+c.toLowerCase(); totals[k]+=effQtyK(s,k); }); }); });
+  var grand=Object.keys(totals).reduce(function(a,k){ return a+totals[k]; },0);
+  if(!grand){ el.innerHTML=html+'<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-title">No inventory</div><div class="empty-sub">No units from '+shipCity+'</div></div>'; return; }
+  html+='<div class="ship-summary-card"><div class="ship-header"><div class="ship-city-name">'+shipCity+'</div><div class="ship-total-badge">'+grand+' units</div></div>';
+  MODELS.forEach(function(m){ COLORS.forEach(function(c){ var k=m.id+'_'+c.toLowerCase(); if(!totals[k])return; html+='<div class="model-ship-row"><span class="color-dot dot-'+c.toLowerCase()+'" style="margin-right:10px;flex-shrink:0;"></span><span class="model-ship-name">'+m.name+' / '+c+'</span><span class="model-ship-count">'+totals[k]+'</span></div>'; }); });
+  html+='</div>';
+  var sdv=document.getElementById('ship-dfilter'); var sdvVal=sdv?sdv.value:'';
+  html+='<div class="card" style="margin-bottom:0;"><div class="card-header"><div class="card-title">Filter by Date</div></div><div style="padding:12px 16px;"><div class="field"><input type="date" id="ship-dfilter" value="'+sdvVal+'" onchange="renderShip()"></div></div></div>';
+  sdvVal=sdvVal||''; var fsubs=sdvVal?csubs.filter(function(s){ return s.date===sdvVal; }):csubs;
+  html+='<div class="card"><div class="card-header"><div class="card-title">Reports ('+fsubs.length+')</div></div>';
+  html+=fsubs.length?fsubs.map(function(s){ return'<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);"><div><div style="font-size:14px;font-weight:600;">'+s.buyer+'</div><div style="font-size:11px;color:var(--text3);">'+s.store+' · '+s.date+'</div></div><div style="text-align:right;"><div style="font-size:15px;font-weight:800;color:var(--blue);">'+effTotal(s)+'</div><span class="badge badge-'+bdg(s.status)+'">'+s.status+'</span></div></div>'; }).join(''):'<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">No reports for selected date</div>';
+  html+='</div><div class="card"><div class="card-header"><div class="card-title">Shipping Details</div></div><div class="form-section" style="gap:12px;"><div class="field"><label>Ship Date</label><input type="date" id="ship-date" value="'+td()+'"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"><div class="field"><label>Boxes</label><input type="number" id="ship-boxes" placeholder="e.g. 3" min="1"></div><div class="field"><label>Type</label><select id="ship-type"><option>Full</option><option>Partial</option></select></div></div><div class="field"><label>FedEx Tracking #</label><input type="text" id="ship-tracking" placeholder="7489 2345 6789"></div><div class="field"><label>Shipper Name</label><input type="text" id="ship-shipper" placeholder="Name"></div><button class="btn btn-primary btn-full" onclick="showToast(shipCity+\' shipment marked ✓\')">Mark as Shipped ✓</button></div></div><div style="height:8px;"></div>';
+  el.innerHTML=html;
+}
+
+// ══ OVERRIDES ═══════════════════════════════════════
+function renderOvs(){
+  if(role!=='admin'){ document.getElementById('overrides-body').innerHTML='<div class="access-denied"><div class="icon">🔒</div><h2>Admin Only</h2></div>'; return; }
+  var mism=objVals(subs).filter(function(s){ return s.status==='mismatch'; });
+  var el=document.getElementById('overrides-body');
+  if(!mism.length){ el.innerHTML='<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-title">All clear</div><div class="empty-sub">No mismatches to review</div></div>'; return; }
+  el.innerHTML=mism.map(function(s){
+    var myOvs=ovs[s._id]||{}, rows='';
+    MODELS.forEach(function(m){ COLORS.forEach(function(c){
+      var k=m.id+'_'+c.toLowerCase(), rep=s.quantities[k]||0, eff=effQtyFrom(s,myOvs,k);
+      if(rep===eff||(!rep&&!eff))return;
+      rows+='<div class="ov-row"><span class="color-dot dot-'+c.toLowerCase()+'"></span><span class="ov-model">'+m.name+'/'+c+'</span><span style="font-weight:700;color:var(--blue);min-width:28px;text-align:center;">'+rep+'</span><span style="color:var(--text3);font-size:12px;">→</span><span style="font-weight:700;color:var(--orange);min-width:28px;text-align:center;">'+eff+'</span></div>';
+    }); });
+    return'<div class="override-card"><div class="ov-header"><div class="ov-buyer">'+s.buyer+'</div><div class="ov-store">'+s.store+' · '+s.date+'</div></div>'+rows+'<div style="padding:12px 16px;display:flex;gap:8px;"><button class="btn btn-warn btn-sm" onclick="openOverride(\''+s._id+'\')">Edit</button><button class="btn btn-danger btn-sm" onclick="clearOv(\''+s._id+'\')">Clear</button><button class="btn btn-green btn-sm" onclick="verifyReport(\''+s._id+'\')">Verify</button></div></div>';
+  }).join('');
+}
+
+// ══ EXPORT ══════════════════════════════════════════
+function renderExport(){
+  var el=document.getElementById('export-body');
+  if(role!=='admin'){ el.innerHTML='<div class="access-denied"><div class="icon">🔒</div><h2>Admin Only</h2><button class="btn btn-primary" onclick="openPin()">Sign in as Admin</button></div>'; return; }
+  el.innerHTML='<div class="card" style="margin-top:12px;"><div class="card-header"><div class="card-title">Export Options</div></div><div class="form-section"><div class="info-box">Downloads a real .xlsx matching the Daily Purchase Report format.</div><div class="field"><label>Filter by City</label><select id="ex-city"><option value="">All Cities</option><option>Dallas</option><option>Houston</option><option>Austin</option><option>San Antonio</option></select></div><div class="field"><label>Filter by Date</label><input type="date" id="ex-date"></div><div class="field"><label>Filter by Buyer</label><input type="text" id="ex-buyer" placeholder="Leave blank for all"></div><button class="btn btn-excel btn-full" style="margin-top:4px;" onclick="doExport()">⬇ Download Excel (.xlsx)</button><div id="ex-status" style="text-align:center;font-size:13px;color:var(--text3);min-height:18px;"></div></div></div><div style="height:8px;"></div>';
+}
+function doExport(){
+  var cityF=v('ex-city'), dateF=v('ex-date'), buyerF=(v('ex-buyer')||'').toLowerCase();
+  var list=objVals(subs);
+  if(cityF)list=list.filter(function(s){ return s.city===cityF; });
+  if(dateF)list=list.filter(function(s){ return s.date===dateF; });
+  if(buyerF)list=list.filter(function(s){ return s.buyer.toLowerCase()===buyerF; });
+  if(!list.length){ showToast('No reports match filters','error'); return; }
+  var cols=['Date','Buyer Name','Name on Card','Company','City','Store','17 Pro Max 256GB - Silver','17 Pro Max 256GB - Blue','17 Pro Max 256GB - Orange','17 Pro Max 512GB - Silver','17 Pro Max 512GB - Blue','17 Pro Max 512GB - Orange','17 Pro Max 1TB - Silver','17 Pro Max 1TB - Blue','17 Pro Max 1TB - Orange','17 Pro 256GB - Silver','17 Pro 256GB - Blue','17 Pro 256GB - Orange','Total','Status'];
+  var rows=list.map(function(s){ return[s.date,s.buyer,s.card,s.company,s.city,s.store,effQtyK(s,'pm256_silver'),effQtyK(s,'pm256_blue'),effQtyK(s,'pm256_orange'),effQtyK(s,'pm512_silver'),effQtyK(s,'pm512_blue'),effQtyK(s,'pm512_orange'),effQtyK(s,'pm1tb_silver'),effQtyK(s,'pm1tb_blue'),effQtyK(s,'pm1tb_orange'),effQtyK(s,'p256_silver'),effQtyK(s,'p256_blue'),effQtyK(s,'p256_orange'),effTotal(s),s.status]; });
+  var cities=['Dallas','Houston','Austin','San Antonio'];
+  var sumRows=cities.map(function(city){ var cs=list.filter(function(s){ return s.city===city; }); if(!cs.length)return null; return[city,sum(cs,'pm256_silver'),sum(cs,'pm256_blue'),sum(cs,'pm256_orange'),sum(cs,'pm512_silver'),sum(cs,'pm512_blue'),sum(cs,'pm512_orange'),sum(cs,'pm1tb_silver'),sum(cs,'pm1tb_blue'),sum(cs,'pm1tb_orange'),sum(cs,'p256_silver'),sum(cs,'p256_blue'),sum(cs,'p256_orange'),cs.reduce(function(a,s){ return a+effTotal(s); },0)]; }).filter(Boolean);
+  var bnames=[...new Set(list.map(function(s){ return s.buyer; }))];
+  var bRows=bnames.map(function(b){ var bs=list.filter(function(s){ return s.buyer===b; }); return[b,bs.length,bs.reduce(function(a,s){ return a+effTotal(s); },0),bs.every(function(s){ return s.status==='verified'; })?'All Verified':bs.some(function(s){ return s.status==='mismatch'; })?'Has Mismatches':'Pending']; });
+  var wb=buildXlsx([{name:'Purchase Reports',header:cols,rows:rows},{name:'City Summary',header:['City','PM256S','PM256B','PM256O','PM512S','PM512B','PM512O','PM1TBS','PM1TBB','PM1TBO','P256S','P256B','P256O','Total'],rows:sumRows},{name:'Buyer Summary',header:['Buyer','Reports','Total Units','Status'],rows:bRows}]);
+  dlBlob(wb,'CTI_Reports'+(cityF?'_'+cityF:'')+(dateF?'_'+dateF:'')+'_'+td()+'.xlsx');
+  var st=document.getElementById('ex-status'); if(st){ st.textContent='✓ '+list.length+' reports exported'; st.style.color='var(--green)'; }
+  showToast(list.length+' reports exported ✓');
+}
+function sum(arr,k){ return arr.reduce(function(a,s){ return a+effQtyK(s,k); },0); }
+
+// ══ SETTINGS ════════════════════════════════════════
+function renderSettings(){
+  if(role!=='admin'){ document.getElementById('settings-body').innerHTML='<div class="access-denied"><div class="icon">🔒</div><h2>Admin Only</h2></div>'; return; }
+  var cfg=loadCfg()||{};
+  document.getElementById('settings-body').innerHTML='<div class="connected-banner" style="margin:12px 16px 0;"><div style="font-size:24px;">🔥</div><div><div style="font-size:15px;font-weight:800;">Firebase Connected</div><div style="font-size:12px;opacity:.85;margin-top:2px;">'+( cfg.projectId||'Unknown')+'</div></div></div><div class="card"><div class="card-header"><div class="card-title">Reconfigure</div></div><div class="form-section"><div class="field"><label>API Key</label><input type="text" id="set-ak" value="'+(cfg.apiKey||'')+'"></div><div class="field"><label>Auth Domain</label><input type="text" id="set-ad" value="'+(cfg.authDomain||'')+'"></div><div class="field"><label>Database URL</label><input type="text" id="set-du" value="'+(cfg.databaseURL||'')+'"></div><div class="field"><label>Project ID</label><input type="text" id="set-pi" value="'+(cfg.projectId||'')+'"></div><button class="btn btn-warn btn-full" onclick="updCfg()">Update Config</button></div></div><div class="card" style="margin-bottom:16px;"><div class="card-header"><div class="card-title">Danger Zone</div></div><div class="form-section"><button class="btn btn-danger btn-full" onclick="if(confirm(\'Reset Firebase config?\')){ localStorage.removeItem(\'cti_fb\'); location.reload(); }">Reset Firebase Config</button></div></div>';
+}
+function updCfg(){
+  var cfg={apiKey:v('set-ak'),authDomain:v('set-ad'),databaseURL:v('set-du'),projectId:v('set-pi')};
+  localStorage.setItem('cti_fb',JSON.stringify(cfg));
+  showToast('Saved — reload to apply');
+}
+
+// ══ HELPERS ══════════════════════════════════════════
+function effQtyFrom(sub,myOvs,key){ return (myOvs&&myOvs[key]!==undefined)?myOvs[key]:(sub.quantities[key]||0); }
+function effQtyK(sub,key){ var mo=(sub._id&&ovs[sub._id])||{}; return effQtyFrom(sub,mo,key); }
+function effTotal(sub){ var t=0; MODELS.forEach(function(m){ COLORS.forEach(function(c){ t+=effQtyK(sub,m.id+'_'+c.toLowerCase()); }); }); return t; }
+function objVals(o){ return Object.keys(o).map(function(k){ return o[k]; }).filter(Boolean); }
+function sm(a,b){ return (a||'').toLowerCase()===(b||'').toLowerCase(); }
+function bdg(st){ return st==='verified'?'ok':st==='mismatch'?'mismatch':'pending'; }
+function v(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+function set(id,val){ var el=document.getElementById(id); if(el)el.textContent=val; }
+function OM(id){ document.getElementById(id).classList.add('open'); }
+function CM(id){ document.getElementById(id).classList.remove('open'); }
+function showToast(msg,type){ var t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+(type||'success'); setTimeout(function(){ t.classList.remove('show'); },2800); }
+function updateBadges(){
+  var all=objVals(subs);
+  var mine=role==='admin'?all:all.filter(function(s){ return sm(s.buyer,myName); });
+  var mism=all.filter(function(s){ return s.status==='mismatch'; }).length;
+  var units=all.reduce(function(a,s){ return a+effTotal(s); },0);
+  var sb=document.getElementById('tbadge-sub'); if(sb){ sb.textContent=mine.length; sb.classList.toggle('hide',!mine.length); }
+  var shb=document.getElementById('tbadge-ship'); if(shb){ shb.textContent=units; shb.classList.toggle('hide',!units); }
+  var ob=document.getElementById('tbadge-ov'); if(ob){ ob.textContent=mism; ob.classList.toggle('hide',!mism); }
+  var nd=document.getElementById('notif-dot'); if(nd)nd.style.display=mism&&role==='admin'?'':'none';
+}
+
+// Close modals on overlay tap
+['detail-modal','override-modal','pin-modal','chpin-modal','admin-menu','buyer-modal'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el)el.addEventListener('click',function(e){ if(e.target===this)CM(id); });
+});
+
+// ══ XLSX BUILDER ════════════════════════════════════
+function buildXlsx(sheets){
+  var files={};
+  var ss=[], ssm={};
+  function getss(val){ var s=String(val==null?'':val); if(ssm[s]===undefined){ssm[s]=ss.length;ss.push(s);}return ssm[s]; }
+  function col26(n){ var s='';n++;while(n>0){n--;s=String.fromCharCode(65+n%26)+s;n=Math.floor(n/26);}return s; }
+  function xe(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  var shRels=[], shNames=[];
+  sheets.forEach(function(sh,si){
+    var all=[sh.header].concat(sh.rows);
+    var x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    all.forEach(function(row,ri){
+      x+='<row r="'+(ri+1)+'">';
+      row.forEach(function(val,ci){
+        var ref=col26(ci)+(ri+1);
+        if(typeof val==='number') x+='<c r="'+ref+'" t="n"><v>'+val+'</v></c>';
+        else x+='<c r="'+ref+'" t="s"><v>'+getss(val)+'</v></c>';
+      });
+      x+='</row>';
+    });
+    x+='</sheetData></worksheet>';
+    files['xl/worksheets/sheet'+(si+1)+'.xml']=enc(x);
+    shRels.push('<Override PartName="/xl/worksheets/sheet'+(si+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>');
+    shNames.push(sh.name);
+  });
+  files['xl/sharedStrings.xml']=enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="'+ss.length+'" uniqueCount="'+ss.length+'">'+ss.map(function(s){ return'<si><t>'+xe(s)+'</t></si>'; }).join('')+'</sst>');
+  files['xl/workbook.xml']=enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+shNames.map(function(n,i){ return'<sheet name="'+xe(n)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>'; }).join('')+'</sheets></workbook>');
+  files['xl/_rels/workbook.xml.rels']=enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+shNames.map(function(_,i){ return'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>'; }).join('')+'<Relationship Id="rId'+(shNames.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>');
+  files['[Content_Types].xml']=enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+shRels.join('')+'<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>');
+  files['_rels/.rels']=enc('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  return zipFiles(files);
+}
+function enc(s){ return new TextEncoder().encode(s); }
+function zipFiles(files){
+  var entries=[],offset=0,e=new TextEncoder();
+  Object.keys(files).forEach(function(name){
+    var data=files[name],nb=e.encode(name),crc=crc32(data);
+    entries.push({name:nb,data:data,crc:crc,offset:offset});
+    offset+=30+nb.length+data.length;
+  });
+  var cdParts=[],cdSize=0;
+  entries.forEach(function(en){
+    var cd=new Uint8Array(46+en.name.length),dv=new DataView(cd.buffer);
+    dv.setUint32(0,0x02014b50,true);dv.setUint16(4,20,true);dv.setUint16(6,20,true);
+    dv.setUint16(8,0,true);dv.setUint16(10,0,true);dv.setUint16(12,0,true);dv.setUint16(14,0,true);
+    dv.setUint32(16,en.crc,true);dv.setUint32(20,en.data.length,true);dv.setUint32(24,en.data.length,true);
+    dv.setUint16(28,en.name.length,true);dv.setUint16(30,0,true);dv.setUint16(32,0,true);dv.setUint16(34,0,true);
+    dv.setUint16(36,0,true);dv.setUint32(38,0,true);dv.setUint32(42,en.offset,true);
+    cd.set(en.name,46);cdParts.push(cd);cdSize+=cd.length;
+  });
+  var eocd=new Uint8Array(22),edv=new DataView(eocd.buffer);
+  edv.setUint32(0,0x06054b50,true);edv.setUint16(4,0,true);edv.setUint16(6,0,true);
+  edv.setUint16(8,entries.length,true);edv.setUint16(10,entries.length,true);
+  edv.setUint32(12,cdSize,true);edv.setUint32(16,offset,true);edv.setUint16(20,0,true);
+  var parts=[];
+  entries.forEach(function(en){
+    var lh=new Uint8Array(30+en.name.length),dv=new DataView(lh.buffer);
+    dv.setUint32(0,0x04034b50,true);dv.setUint16(4,20,true);dv.setUint16(6,0,true);
+    dv.setUint16(8,0,true);dv.setUint16(10,0,true);dv.setUint16(12,0,true);
+    dv.setUint32(14,en.crc,true);dv.setUint32(18,en.data.length,true);dv.setUint32(22,en.data.length,true);
+    dv.setUint16(26,en.name.length,true);dv.setUint16(28,0,true);
+    lh.set(en.name,30);parts.push(lh);parts.push(en.data);
+  });
+  cdParts.forEach(function(p){ parts.push(p); });parts.push(eocd);
+  var total=parts.reduce(function(a,p){ return a+p.length; },0);
+  var out=new Uint8Array(total),pos=0;
+  parts.forEach(function(p){ out.set(p,pos);pos+=p.length; });
+  return out;
+}
+function crc32(data){
+  var crc=0xFFFFFFFF;
+  if(!crc32.t){ var T=new Uint32Array(256); for(var i=0;i<256;i++){var c=i;for(var j=0;j<8;j++)c=c&1?(0xEDB88320^(c>>>1)):(c>>>1);T[i]=c;}crc32.t=T; }
+  for(var i=0;i<data.length;i++)crc=crc32.t[(crc^data[i])&0xFF]^(crc>>>8);
+  return(crc^0xFFFFFFFF)>>>0;
+}
+function dlBlob(u8,name){
+  var blob=new Blob([u8],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+}
+</script>
+
+</body>
+</html>o
